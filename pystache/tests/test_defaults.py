@@ -24,7 +24,8 @@ class DefaultsConfigurableTestCase(unittest.TestCase, AssertStringMixin):
             'DECODE_ERRORS', 'DELIMITERS',
             'FILE_ENCODING', 'MISSING_TAGS',
             'SEARCH_DIRS', 'STRING_ENCODING',
-            'TAG_ESCAPE', 'TEMPLATE_EXTENSION'
+            'TAG_ESCAPE', 'TEMPLATE_EXTENSION',
+            'HELPERS_ENABLED'
         ]
         self.saved = {}
         for e in defaults:
@@ -66,3 +67,19 @@ class DefaultsConfigurableTestCase(unittest.TestCase, AssertStringMixin):
         pystache.defaults.MISSING_TAGS = 'strict'
         self.assertRaises(pystache.context.KeyNotFoundError,
                           pystache.render, template, context)
+
+    def test_helpers_enabled(self):
+        """Test that changes to defaults.HELPERS_ENABLED take effect."""
+        template = u"{{foo bar baz}}"
+        context = {
+            'foo bar baz': 'quux',
+            'foo': lambda bar, baz: bar + baz,
+            'bar': 1,
+            'baz': 2,
+        }
+        actual = pystache.render(template, context)
+        self.assertString(actual, u"quux")
+
+        pystache.defaults.HELPERS_ENABLED = True
+        actual = pystache.render(template, context)
+        self.assertString(actual, u"3")

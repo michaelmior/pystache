@@ -8,6 +8,7 @@ Defines a class responsible for rendering logic.
 import re
 
 from pystache.common import is_string
+from pystache import defaults
 from pystache.parser import parse
 
 
@@ -16,7 +17,18 @@ def context_get(stack, name):
     Find and return a name from a ContextStack instance.
 
     """
-    return stack.get(name)
+    if defaults.HELPERS_ENABLED:
+        # We need special behaviour for helpers to allow quotation
+        # of literals to be passed to helper functions.
+        # TODO Proper matching of quotes
+        match = re.match('[\'"](.*)[\'"]', name)
+
+        if match:
+            return match.group(1)
+        else:
+            return stack.get(name)
+    else:
+        return stack.get(name)
 
 
 class RenderEngine(object):
@@ -102,11 +114,20 @@ class RenderEngine(object):
         Get a value from the given context as a basestring instance.
 
         """
-        val = self.resolve_context(context, name)
+        if defaults.HELPERS_ENABLED:
+            # Resolve all arguments to the helper function
+            args = re.split('\s+', name)
+            val = self.resolve_context(context, args[0])
+        else:
+            val = self.resolve_context(context, name)
 
         if callable(val):
-            # Return because _render_value() is already a string.
-            return self._render_value(val(), context)
+            if defaults.HELPERS_ENABLED:
+                # Return because _render_value() is already a string.
+                rest = [self.resolve_context(context, arg) for arg in args[1:]]
+                return self._render_value(val(*rest), context)
+            else:
+                return self._render_value(val(), context)
 
         if not is_string(val):
             return self.to_str(val)
